@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.boojongmin.autooffsetlocaldatetime;
 
 import lombok.Getter;
 import lombok.Setter;

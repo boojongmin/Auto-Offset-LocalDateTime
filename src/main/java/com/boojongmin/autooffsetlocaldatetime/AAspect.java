@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.boojongmin.autooffsetlocaldatetime;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -8,10 +8,10 @@ import org.springframework.validation.support.BindingAwareModelMap;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 @Aspect
 @Component
@@ -19,6 +19,7 @@ public class AAspect {
     @Around("@within(org.springframework.stereotype.Controller)")
     public  Object process(final ProceedingJoinPoint joinPoint) {
         Object result = null;
+        Supplier<Integer> getTimezoneTypeSupplier = null;
         try {
             Object[] args = joinPoint.getArgs();
             result = joinPoint.proceed();
@@ -28,26 +29,36 @@ public class AAspect {
                     Set<String> keys = m.keySet();
                     for (String k : keys) {
                         Object o = m.get(k);
+                        if(o == null) continue;
+
                         Field[] arr = o.getClass().getDeclaredFields();
                         for (int i = 0; i < arr.length; i++) {
                             Field f = arr[i];
                             f.setAccessible(true);
                             if(f.getType().getName().equals("java.time.LocalDateTime")) {
+
+                                if(getTimezoneTypeSupplier == null) {
+                                    getTimezoneTypeSupplier = getOffsetHour();
+                                }
+
                                 LocalDateTime l = (LocalDateTime)f.get(o);
-                                OffsetDateTime offsetDateTime = l.atOffset(ZoneOffset.ofHours(-9));
-                                var bm = (BindingAwareModelMap)obj;
-                                f.set(o, offsetDateTime.toLocalDateTime());
+                                if(l == null) continue;
+
+                                LocalDateTime offsetedLocalDateTime = l.plusHours(getTimezoneTypeSupplier.get());
+                                f.set(o, offsetedLocalDateTime);
                             }
                         }
-
                     }
-
-
                 }
             }
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }
         return result;
+    }
+
+    private Supplier<Integer> getOffsetHour() {
+        Optional<Integer> closure = Optional.ofNullable(9);
+        return () -> closure.orElse(0);
     }
 }
